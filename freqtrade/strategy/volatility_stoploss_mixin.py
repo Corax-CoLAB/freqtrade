@@ -1,8 +1,12 @@
-
 from datetime import datetime
-from pandas import DataFrame
+from typing import TYPE_CHECKING, Any
+
 from freqtrade.persistence import Trade
-import pandas as pd
+
+
+if TYPE_CHECKING:
+    from freqtrade.data.dataprovider import DataProvider
+
 
 class VolatilityStoplossMixin:
     """
@@ -22,10 +26,19 @@ class VolatilityStoplossMixin:
     # Multiplier for ATR
     # Can be overridden in the strategy class
     stoploss_atr_multiplier = 2.0
+    dp: "DataProvider"
+    stoploss: float
+    timeframe: str
 
-    def custom_stoploss(self, pair: str, trade: Trade, current_time: datetime,
-                        current_rate: float, current_profit: float, **kwargs) -> float:
-
+    def custom_stoploss(
+        self,
+        pair: str,
+        trade: Trade,
+        current_time: datetime,
+        current_rate: float,
+        current_profit: float,
+        **kwargs: Any,
+    ) -> float:
         # Access the dataframe via dataprovider
         if not self.dp:
             return self.stoploss
@@ -52,13 +65,13 @@ class VolatilityStoplossMixin:
         # But in backtesting we iterate through.
 
         # Check if 'date' column exists
-        if 'date' not in dataframe.columns:
+        if "date" not in dataframe.columns:
             return self.stoploss
 
         # Filter for past/present candles
         # Note: This might be slow in backtesting loop!
         # But it guarantees correctness.
-        matches = dataframe.loc[dataframe['date'] <= current_time]
+        matches = dataframe.loc[dataframe["date"] <= current_time]
 
         if matches.empty:
             return self.stoploss
@@ -66,11 +79,11 @@ class VolatilityStoplossMixin:
         candle = matches.iloc[-1]
 
         # Check if ATR is present
-        if 'atr' not in candle:
+        if "atr" not in candle:
             # Fallback to default stoploss if ATR is not calculated
             return self.stoploss
 
-        atr = candle['atr']
+        atr = candle["atr"]
 
         # Calculate dynamic stoploss based on current ATR
         # Stoploss distance = ATR * Multiplier
@@ -81,7 +94,7 @@ class VolatilityStoplossMixin:
         if current_rate == 0:
             return self.stoploss
 
-        stop_ratio = - (stop_dist / current_rate)
+        stop_ratio = -(stop_dist / current_rate)
 
         # Sanity check: ensure it's negative
         if stop_ratio >= 0:

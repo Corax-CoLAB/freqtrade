@@ -4,9 +4,9 @@ import pandas as pd  # noqa
 from pandas import DataFrame
 
 from freqtrade.strategy import (
-    IStrategy,
-    IntParameter,
     DecimalParameter,
+    IntParameter,
+    IStrategy,
 )
 
 
@@ -40,7 +40,7 @@ class GridStrategy(IStrategy):
     trailing_stop = False
 
     # Timeframe
-    timeframe = '5m'
+    timeframe = "5m"
 
     # Run "populate_indicators()" only for new candle.
     process_only_new_candles = False
@@ -62,21 +62,21 @@ class GridStrategy(IStrategy):
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # Calculate grid boundaries
         # For simplicity, we use a moving average as the center of the grid
-        dataframe['grid_center'] = dataframe['close'].rolling(window=20).mean()
+        dataframe["grid_center"] = dataframe["close"].rolling(window=20).mean()
 
         # Calculate upper and lower bounds of the grid
         # The range is defined as a percentage around the center
         range_pct = self.grid_range.value
-        dataframe['grid_upper'] = dataframe['grid_center'] * (1 + range_pct)
-        dataframe['grid_lower'] = dataframe['grid_center'] * (1 - range_pct)
+        dataframe["grid_upper"] = dataframe["grid_center"] * (1 + range_pct)
+        dataframe["grid_lower"] = dataframe["grid_center"] * (1 - range_pct)
 
-        # We can visualize the grid levels if needed, but for signals we just check relative position
-        # A more complex grid would track state, but for a strategy template we use reactive signals
+        # We can visualize the grid levels if needed, but for signals we just check relative
+        # position. A more complex grid would track state, but for a strategy template we use
+        # reactive signals.
 
         # Calculate relative position within the grid (0 to 1)
-        dataframe['grid_position'] = (
-            (dataframe['close'] - dataframe['grid_lower']) /
-            (dataframe['grid_upper'] - dataframe['grid_lower'])
+        dataframe["grid_position"] = (dataframe["close"] - dataframe["grid_lower"]) / (
+            dataframe["grid_upper"] - dataframe["grid_lower"]
         )
 
         return dataframe
@@ -87,10 +87,11 @@ class GridStrategy(IStrategy):
 
         dataframe.loc[
             (
-                (dataframe['grid_position'] < 0.2) &  # Buy low
-                (dataframe['volume'] > 0)  # Make sure Volume is not 0
+                (dataframe["grid_position"] < 0.2)  # Buy low
+                & (dataframe["volume"] > 0)  # Make sure Volume is not 0
             ),
-            'enter_long'] = 1
+            "enter_long",
+        ] = 1
 
         return dataframe
 
@@ -100,9 +101,10 @@ class GridStrategy(IStrategy):
 
         dataframe.loc[
             (
-                (dataframe['grid_position'] > 0.8) &  # Sell high
-                (dataframe['volume'] > 0)  # Make sure Volume is not 0
+                (dataframe["grid_position"] > 0.8)  # Sell high
+                & (dataframe["volume"] > 0)  # Make sure Volume is not 0
             ),
-            'exit_long'] = 1
+            "exit_long",
+        ] = 1
 
         return dataframe
