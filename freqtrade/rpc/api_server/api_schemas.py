@@ -14,9 +14,6 @@ from pydantic import (
 
 from freqtrade.configuration.timerange import TimeRange
 from freqtrade.constants import DL_DATA_TIMEFRAMES, PAIR_REGEX, IntOrInf
-from pydantic import AwareDatetime, BaseModel, Field, RootModel, SerializeAsAny, model_validator
-
-from freqtrade.constants import DL_DATA_TIMEFRAMES, IntOrInf
 from freqtrade.enums import MarginMode, OrderTypeValues, SignalDirection, TradingMode
 from freqtrade.exceptions import ConfigurationError
 from freqtrade.ft_types import AnnotationType, ValidExchangesType
