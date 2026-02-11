@@ -1,14 +1,12 @@
 # pragma pylint: disable=missing-docstring, invalid-name, stateless-class
+from datetime import datetime
+
 import numpy as np  # noqa
 import pandas as pd  # noqa
 from pandas import DataFrame
 
-from datetime import datetime
-from freqtrade.strategy import (
-    IStrategy,
-    DecimalParameter,
-)
 from freqtrade.persistence import Trade
+from freqtrade.strategy import DecimalParameter, IStrategy
 
 
 class PortfolioStrategy(IStrategy):
@@ -29,15 +27,13 @@ class PortfolioStrategy(IStrategy):
     INTERFACE_VERSION = 3
 
     # Minimal ROI - set to very high because we exit based on rebalancing
-    minimal_roi = {
-        "0": 100
-    }
+    minimal_roi = {"0": 100}
 
     # Stoploss - effectively disabled
     stoploss = -0.99
     trailing_stop = False
 
-    timeframe = '1h'
+    timeframe = "1h"
 
     # Rebalance threshold (percentage deviation allowed before rebalancing)
     rebalance_threshold = DecimalParameter(0.01, 0.1, default=0.05, space="buy")
@@ -51,19 +47,27 @@ class PortfolioStrategy(IStrategy):
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # We signal a buy, but the custom_stake_amount will determine IF and HOW MUCH
-        dataframe.loc[:, 'enter_long'] = 1
+        dataframe.loc[:, "enter_long"] = 1
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # We signal a sell, but custom_exit will determine if we should actually sell
-        dataframe.loc[:, 'exit_long'] = 1
+        dataframe.loc[:, "exit_long"] = 1
         return dataframe
 
-    def custom_stake_amount(self, pair: str, current_time: 'datetime', current_rate: float,
-                            proposed_stake: float, min_stake: float, max_stake: float,
-                            leverage: float, entry_tag: str | None, side: str,
-                            **kwargs) -> float:
-
+    def custom_stake_amount(
+        self,
+        pair: str,
+        current_time: "datetime",
+        current_rate: float,
+        proposed_stake: float,
+        min_stake: float | None,
+        max_stake: float,
+        leverage: float,
+        entry_tag: str | None,
+        side: str,
+        **kwargs,
+    ) -> float:
         # Calculate target allocation
         # For simplicity, equal weight for all whitelisted pairs
         # In a real strategy, you might want weights in config
@@ -77,7 +81,9 @@ class PortfolioStrategy(IStrategy):
         target_weight = 1.0 / len(whitelist)
 
         # Get total portfolio value
-        total_balance = self.wallets.get_total_stake_amount()
+        total_balance = 0.0
+        if self.wallets:
+            total_balance = self.wallets.get_total_stake_amount()
 
         # Target value for this pair
         target_value = total_balance * target_weight
@@ -96,23 +102,32 @@ class PortfolioStrategy(IStrategy):
         # So current holding in 'trades' logic is 0 (unless we consider existing trades).
 
         # If we interpret this as "Buy to reach target", then:
-        amount_to_buy = target_value # - current_holding (which is 0 for new trade)
+        amount_to_buy = target_value  # - current_holding (which is 0 for new trade)
 
-        if amount_to_buy < min_stake:
+        if min_stake and amount_to_buy < min_stake:
             return 0  # Don't buy if target is too small
 
         return min(amount_to_buy, max_stake)
 
-    def custom_exit(self, pair: str, trade: Trade, current_time: 'datetime', current_rate: float,
-                    current_profit: float, **kwargs):
-
+    def custom_exit(
+        self,
+        pair: str,
+        trade: Trade,
+        current_time: "datetime",
+        current_rate: float,
+        current_profit: float,
+        **kwargs,
+    ):
         # Check if we are over-allocated
         whitelist = self.dp.current_whitelist()
         if not whitelist:
             return False
 
         target_weight = 1.0 / len(whitelist)
-        total_balance = self.wallets.get_total_stake_amount()
+        total_balance = 0.0
+        if self.wallets:
+            total_balance = self.wallets.get_total_stake_amount()
+
         target_value = total_balance * target_weight
 
         current_value = trade.stake_amount * (1 + current_profit)

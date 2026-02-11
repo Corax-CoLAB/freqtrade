@@ -821,6 +821,11 @@ CONF_SCHEMA = {
                 },
             },
         },
+        "plot_template": {
+            "description": "Template to use for plotting (e.g., plotly_dark, plotly_white).",
+            "type": "string",
+            "default": "plotly_dark",
+        },
         "dataformat_ohlcv": {
             "description": "Data format for OHLCV data.",
             "type": "string",

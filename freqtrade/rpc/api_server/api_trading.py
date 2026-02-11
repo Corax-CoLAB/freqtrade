@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.exceptions import HTTPException
 
 from freqtrade.constants import PAIR_REGEX
-from freqtrade.enums import TradingMode
+from freqtrade.enums import SignalDirection, TradingMode
 from freqtrade.rpc import RPC
 from freqtrade.rpc.api_server.api_schemas import (
     Balances,
@@ -35,7 +35,6 @@ from freqtrade.rpc.api_server.api_schemas import (
     WebhookPayload,
     WhitelistResponse,
 )
-from freqtrade.enums import SignalDirection
 from freqtrade.rpc.api_server.deps import RateLimiter, get_config, get_rpc
 from freqtrade.rpc.rpc import RPCException
 
@@ -476,81 +475,88 @@ def pair_candles_filtered(payload: PairCandlesRequest, rpc: RPC = Depends(get_rp
         payload.pair, payload.timeframe, payload.limit, payload.columns
     )
 
+
+def _webhook_entry(payload: WebhookPayload, rpc: RPC) -> StatusMsg:
+    ordertype = payload.ordertype.value if payload.ordertype else None
+
+    # Determine side
+    side = payload.side
+    if not side:
+        if payload.action == "short":
+            side = SignalDirection.SHORT
+        else:
+            side = SignalDirection.LONG
+
+    trade = rpc._rpc_force_entry(
+        payload.pair,
+        payload.price,
+        order_side=side,
+        order_type=ordertype,
+        stake_amount=payload.stake_amount,
+        enter_tag=payload.entry_tag or "webhook_entry",
+        leverage=payload.leverage,
+    )
+    if trade:
+        return StatusMsg(status="entry_success")
+    else:
+        raise HTTPException(status_code=400, detail="Entry failed")
+
+
+def _webhook_exit(payload: WebhookPayload, rpc: RPC) -> StatusMsg:
+    # Find open trades for pair
+    try:
+        trades = rpc._rpc_trade_status()
+    except RPCException:
+        trades = []
+
+    # Filter by pair
+    pair_trades = [t for t in trades if t["pair"] == payload.pair]
+
+    if not pair_trades:
+        raise HTTPException(status_code=404, detail=f"No open trade found for {payload.pair}")
+
+    results = []
+    ordertype = payload.ordertype.value if payload.ordertype else None
+
+    for trade in pair_trades:
+        # Check side if specified
+        if payload.side:
+            is_short = trade.get("is_short", False)
+            if (payload.side == SignalDirection.SHORT and not is_short) or (
+                payload.side == SignalDirection.LONG and is_short
+            ):
+                continue
+
+        try:
+            rpc._rpc_force_exit(str(trade["trade_id"]), ordertype, amount=None, price=payload.price)
+            results.append(trade["trade_id"])
+        except RPCException:
+            pass
+
+    if not results:
+        return StatusMsg(status="No trades closed (maybe wrong side?)")
+
+    return StatusMsg(status=f"exit_initiated for {len(results)} trades")
+
+
 @router.post("/webhook", tags=["Webhook"])
 def webhook(payload: WebhookPayload, rpc: RPC = Depends(get_rpc), config=Depends(get_config)):
     """
     Webhook endpoint to trigger buy/sell actions.
     Requires 'webhook.webhook_token' to be set in config.
     """
-    webhook_token = config.get('webhook', {}).get('webhook_token')
+    webhook_token = config.get("webhook", {}).get("webhook_token")
     if not webhook_token:
-         raise HTTPException(status_code=400, detail="Webhook token not configured")
+        raise HTTPException(status_code=400, detail="Webhook token not configured")
 
     if payload.token != webhook_token:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    if payload.action in ('entry', 'buy', 'long', 'short'):
-        ordertype = payload.ordertype.value if payload.ordertype else None
+    if payload.action in ("entry", "buy", "long", "short"):
+        return _webhook_entry(payload, rpc)
 
-        # Determine side
-        side = payload.side
-        if not side:
-            if payload.action == 'short':
-                side = SignalDirection.SHORT
-            else:
-                side = SignalDirection.LONG
-
-        trade = rpc._rpc_force_entry(
-            payload.pair,
-            payload.price,
-            order_side=side,
-            order_type=ordertype,
-            stake_amount=payload.stake_amount,
-            enter_tag=payload.entry_tag or "webhook_entry",
-            leverage=payload.leverage,
-        )
-        if trade:
-            return StatusMsg(status="entry_success")
-        else:
-            raise HTTPException(status_code=400, detail="Entry failed")
-
-    elif payload.action in ('exit', 'sell'):
-        # Find open trades for pair
-        try:
-            trades = rpc._rpc_trade_status()
-        except RPCException:
-            trades = []
-
-        # Filter by pair
-        # rpc._rpc_trade_status returns list of dicts
-        pair_trades = [t for t in trades if t['pair'] == payload.pair]
-
-        if not pair_trades:
-             raise HTTPException(status_code=404, detail=f"No open trade found for {payload.pair}")
-
-        results = []
-        ordertype = payload.ordertype.value if payload.ordertype else None
-
-        for trade in pair_trades:
-            # Check side if specified
-            if payload.side:
-                 is_short = trade.get('is_short', False)
-                 if (payload.side == SignalDirection.SHORT and not is_short) or \
-                    (payload.side == SignalDirection.LONG and is_short):
-                     continue
-
-            try:
-                rpc._rpc_force_exit(
-                    str(trade['trade_id']), ordertype, amount=None, price=payload.price
-                )
-                results.append(trade['trade_id'])
-            except RPCException:
-                pass
-
-        if not results:
-             return StatusMsg(status="No trades closed (maybe wrong side?)")
-
-        return StatusMsg(status=f"exit_initiated for {len(results)} trades")
+    elif payload.action in ("exit", "sell"):
+        return _webhook_exit(payload, rpc)
 
     else:
         raise HTTPException(status_code=400, detail=f"Invalid action: {payload.action}")

@@ -43,6 +43,17 @@ except ImportError:
     exit(1)
 
 
+PLOTLY_MODEBAR_ADD = [
+    "drawline",
+    "drawopenpath",
+    "drawcircle",
+    "drawrect",
+    "eraseshape",
+    "v1hovermode",
+    "toggleSpikeLines",
+]
+
+
 def init_plotscript(config, markets: list, startup_candles: int = 0):
     """
     Initialize objects needed for plotting
@@ -263,7 +274,7 @@ def plot_trades(fig, trades: pd.DataFrame) -> make_subplots:
         trades["desc"] = trades.apply(
             lambda row: (
                 f"{row['profit_ratio']:.2%}, "
-                + (f"{row['enter_tag']}, " if row["enter_tag"] is not None else "")
+                + (f"{row['enter_tag']}, " if pd.notna(row["enter_tag"]) else "")
                 + f"{row['exit_reason']}, "
                 + f"{row['trade_duration']} min"
             ),
@@ -470,12 +481,27 @@ def generate_candlestick_graph(
     fig["layout"]["yaxis2"].update(title="Volume")
     for i, name in enumerate(plot_config["subplots"]):
         fig["layout"][f"yaxis{3 + i}"].update(title=name)
-    fig["layout"]["xaxis"]["rangeslider"].update(visible=False)
-    fig.update_layout(modebar_add=["v1hovermode", "toggleSpikeLines"])
+    # Use the template from plot_config or default to plotly_dark
+    template = plot_config.get("template", "plotly_dark")
+    fig.update_layout(template=template, hovermode="x unified")
+
+    # Set rangeslider visibility based on configuration
+    rangeslider_visible = plot_config.get("rangeslider", False)
+    fig["layout"]["xaxis"]["rangeslider"].update(visible=rangeslider_visible)
+
+    # Enhance modebar with more tools
+    fig.update_layout(modebar_add=PLOTLY_MODEBAR_ADD)
 
     # Common information
     candles = go.Candlestick(
-        x=data.date, open=data.open, high=data.high, low=data.low, close=data.close, name="Price"
+        x=data.date,
+        open=data.open,
+        high=data.high,
+        low=data.low,
+        close=data.close,
+        name="Price",
+        increasing_line_color="#2EFEF7" if template == "plotly_dark" else None,
+        decreasing_line_color="#FF0040" if template == "plotly_dark" else None,
     )
     fig.add_trace(candles, 1, 1)
 
@@ -527,6 +553,7 @@ def generate_profit_graph(
     timeframe: str,
     stake_currency: str,
     starting_balance: float,
+    config: Config | None = None,
 ) -> go.Figure:
     # Combine close-values for all pairs, rename columns to "pair"
     try:
@@ -575,7 +602,16 @@ def generate_profit_graph(
     fig["layout"]["yaxis5"].update(title="Underwater Plot")
     fig["layout"]["yaxis6"].update(title="Underwater Plot Relative (%)", tickformat=",.2%")
     fig["layout"]["xaxis"]["rangeslider"].update(visible=False)
-    fig.update_layout(modebar_add=["v1hovermode", "toggleSpikeLines"])
+
+    template = "plotly_dark"
+    if config and config.get("plot_template"):
+        template = config["plot_template"]
+
+    fig.update_layout(
+        template=template,
+        hovermode="x unified",
+        modebar_add=PLOTLY_MODEBAR_ADD,
+    )
 
     fig.add_trace(avgclose, 1, 1)
     fig = add_profit(fig, 2, df_comb, "cum_profit", "Profit")
@@ -657,13 +693,17 @@ def load_and_plot_trades(config: Config):
         else:
             trades_pair = trades
 
+        plot_config = strategy.plot_config.copy() if hasattr(strategy, "plot_config") else {}
+        if config.get("plot_template"):
+            plot_config["template"] = config["plot_template"]
+
         fig = generate_candlestick_graph(
             pair=pair,
             data=df_analyzed,
             trades=trades_pair,
             indicators1=config.get("indicators1", []),
             indicators2=config.get("indicators2", []),
-            plot_config=strategy.plot_config if hasattr(strategy, "plot_config") else {},
+            plot_config=plot_config,
         )
 
         store_plot_file(
@@ -709,6 +749,7 @@ def plot_profit(config: Config) -> None:
         config["timeframe"],
         config.get("stake_currency", ""),
         config.get("available_capital", get_dry_run_wallet(config)),
+        config=config,
     )
     store_plot_file(
         fig,
