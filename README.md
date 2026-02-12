@@ -83,6 +83,18 @@ Please find the complete documentation on the [freqtrade website](https://www.fr
 - [x] **Display profit/loss in fiat**: Display your profit/loss in fiat currency.
 - [x] **Performance status report**: Provide a performance status of your current trades.
 
+## Crypto P's Special Features
+
+This elevated version includes exclusive features designed by Crypto P to enhance your trading experience:
+
+- **Enhanced Branding & User Experience**: Step into the "Magical Server" with a unique, vibrant theme and the "Crypto P" persona guiding you.
+- **Interactive Setup**: The fallback UI page includes copy-paste commands with toast notifications and confetti effects to make installation easier and more fun.
+- **Bitget Futures Improvements**:
+    - **Cross Margin Support**: Enabled for Bitget Futures, allowing for more flexible risk management.
+    - **Custom Liquidation Logic**: Enhanced dry-run calculations to better simulate real-world liquidation scenarios on Bitget.
+    - **Delisting Checks**: Proactive monitoring for futures contract delistings to protect your positions.
+- **Hyperliquid DEX Integration**: Full support for trading on the Hyperliquid decentralized exchange, including Cross Margin capabilities.
+
 ## Quick start
 
 Please refer to the [Docker Quickstart documentation](https://www.freqtrade.io/en/stable/docker_quickstart/) on how to get started quickly.
