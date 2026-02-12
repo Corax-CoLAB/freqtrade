@@ -100,8 +100,12 @@ def clean_ohlcv_dataframe(
         if not data["date"].is_monotonic_increasing:
             data.sort_values(by="date", inplace=True)
 
-        data.reset_index(drop=True, inplace=True)
-        data = data[["date", "open", "high", "low", "close", "volume"]]
+        if not isinstance(data.index, pd.RangeIndex):
+            data.reset_index(drop=True, inplace=True)
+
+        # Optimization: Only reorder/filter columns if necessary to avoid copy
+        if list(data.columns) != ["date", "open", "high", "low", "close", "volume"]:
+            data = data[["date", "open", "high", "low", "close", "volume"]]
 
     # eliminate partial candle
     if drop_incomplete:
@@ -141,13 +145,12 @@ def ohlcv_fill_up_missing_data(dataframe: DataFrame, timeframe: str, pair: str) 
     # Forwardfill close for missing columns
     df["close"] = df["close"].ffill()
     # Use close for "open, high, low"
-    df.fillna(
+    df = df.fillna(
         value={
             "open": df["close"],
             "high": df["close"],
             "low": df["close"],
         },
-        inplace=True,
     )
     df.reset_index(inplace=True)
     len_before = len(dataframe)

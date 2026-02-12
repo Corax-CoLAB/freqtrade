@@ -684,7 +684,7 @@ class FreqtradeBot(LoggingMixin):
         logger.debug(f"create_trade for pair {pair}")
 
         analyzed_df, _ = self.dataprovider.get_analyzed_dataframe(pair, self.strategy.timeframe)
-        nowtime = analyzed_df.iloc[-1]["date"] if len(analyzed_df) > 0 else None
+        nowtime = analyzed_df["date"].iloc[-1] if len(analyzed_df) > 0 else None
 
         # get_free_open_trades is checked before create_trade is called
         # but it is still used here to prevent opening too many trades within one iteration
@@ -1717,7 +1717,7 @@ class FreqtradeBot(LoggingMixin):
         analyzed_df, _ = self.dataprovider.get_analyzed_dataframe(
             trade.pair, self.strategy.timeframe
         )
-        latest_candle_open_date = analyzed_df.iloc[-1]["date"] if len(analyzed_df) > 0 else None
+        latest_candle_open_date = analyzed_df["date"].iloc[-1] if len(analyzed_df) > 0 else None
         latest_candle_close_date = timeframe_to_next_date(
             self.strategy.timeframe, latest_candle_open_date
         )
