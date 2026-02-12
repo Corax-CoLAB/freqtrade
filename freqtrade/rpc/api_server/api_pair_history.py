@@ -27,6 +27,9 @@ def pair_history(
 ):
     # The initial call to this endpoint can be slow, as it may need to initialize
     # the exchange class.
+    if ":" in strategy:
+        raise HTTPException(status_code=500, detail="base64 encoded strategies are not allowed.")
+
     config_loc = deepcopy(config)
     config_loc.update(
         {
@@ -47,6 +50,9 @@ def pair_history(
 def pair_history_filtered(payload: PairHistoryRequest, config=Depends(get_config)):
     # The initial call to this endpoint can be slow, as it may need to initialize
     # the exchange class.
+    if payload.strategy and ":" in payload.strategy:
+        raise HTTPException(status_code=500, detail="base64 encoded strategies are not allowed.")
+
     config_loc = deepcopy(config)
     config_loc.update(
         {

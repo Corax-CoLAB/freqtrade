@@ -568,7 +568,7 @@
           <span class="status-dot inactive"></span> UI Not Installed
       </div>
       <div class="logo-container">
-        <button class="logo-btn" onclick="spinLogo(this)" aria-label="Spin the logo">
+        <button class="logo-btn" id="logo-btn" aria-label="Spin the logo">
             <img src="/logo.png" alt="Crypto P Logo" class="logo">
         </button>
       </div>
@@ -615,9 +615,9 @@
                  <div class="terminal-header">
                      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
                  </div>
-                 <code id="install-cmd" onclick="selectText(this)" onkeydown="handleKeyPress(event, this)" tabindex="0" role="button" title="Click or Enter to select">freqtrade install-ui</code>
+                 <code id="install-cmd" tabindex="0" role="button" title="Click or Enter to select">freqtrade install-ui</code>
              </div>
-             <button class="copy-btn" onclick="copyCommand('install-cmd', this)" aria-label="Copy install command">
+             <button class="copy-btn" id="copy-install-btn" aria-label="Copy install command">
                 <span class="icon">📋</span>
                 <span class="text">Copy</span>
              </button>
@@ -625,14 +625,14 @@
 
           <div class="docker-hint">
             <strong>🐳 Docker User?</strong> Run:
-            <code id="docker-cmd" onclick="selectText(this)" onkeydown="handleKeyPress(event, this)" tabindex="0" role="button" title="Click or Enter to select">docker compose run --rm freqtrade install-ui</code>
-            <button class="copy-btn small" onclick="copyCommand('docker-cmd', this)" aria-label="Copy docker command">
+            <code id="docker-cmd" tabindex="0" role="button" title="Click or Enter to select">docker compose run --rm freqtrade install-ui</code>
+            <button class="copy-btn small" id="copy-docker-btn" aria-label="Copy docker command">
                 <span class="icon">📋</span>
              </button>
           </div>
 
           <p>Then refresh this page to enter the dashboard!</p>
-          <button class="btn" onclick="refreshPage(this)" aria-label="Refresh page">
+          <button class="btn" id="refresh-btn" aria-label="Refresh page">
               <span class="spinner"></span>
               <span class="btn-text">🔄 Refresh Dashboard</span>
           </button>
@@ -644,6 +644,24 @@
     </footer>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('logo-btn').addEventListener('click', function() { spinLogo(this); });
+
+            const installCmd = document.getElementById('install-cmd');
+            installCmd.addEventListener('click', function() { selectText(this); });
+            installCmd.addEventListener('keydown', function(e) { handleKeyPress(e, this); });
+
+            document.getElementById('copy-install-btn').addEventListener('click', function() { copyCommand('install-cmd', this); });
+
+            const dockerCmd = document.getElementById('docker-cmd');
+            dockerCmd.addEventListener('click', function() { selectText(this); });
+            dockerCmd.addEventListener('keydown', function(e) { handleKeyPress(e, this); });
+
+            document.getElementById('copy-docker-btn').addEventListener('click', function() { copyCommand('docker-cmd', this); });
+
+            document.getElementById('refresh-btn').addEventListener('click', function() { refreshPage(this); });
+        });
+
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
 

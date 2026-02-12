@@ -119,14 +119,29 @@ def create_token(data: dict, secret_key: str, token_type: str = "access") -> str
 
 
 def http_basic_or_jwt_token(
+    request: Request,
     form_data: HTTPBasicCredentials = Depends(httpbasic),
     token: str = Depends(oauth2_scheme),
     api_config=Depends(get_api_config),
 ):
     if token:
         return get_user_from_token(token, api_config["jwt_secret_key"])
-    elif form_data and verify_auth(api_config, form_data.username, form_data.password):
-        return form_data.username
+    elif form_data:
+        client_ip = request.client.host if request.client else "unknown"
+        attempts = login_attempts_cache.get(client_ip, 0)
+        if attempts >= 5:
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many login attempts. Please try again later.",
+            )
+
+        if verify_auth(api_config, form_data.username, form_data.password):
+            if client_ip in login_attempts_cache:
+                del login_attempts_cache[client_ip]
+            return form_data.username
+        else:
+            login_attempts_cache[client_ip] = attempts + 1
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

@@ -34,6 +34,16 @@ def botclient_security(default_conf, mocker):
     ftbot = get_patched_freqtradebot(mocker, default_conf)
     rpc = RPC(ftbot)
     mocker.patch("freqtrade.rpc.api_server.ApiServer.start_api", MagicMock())
+
+    # Disable rate limiter for security tests to avoid 429
+    # Patch login_attempts_cache to return 0 (int)
+    login_cache_mock = MagicMock()
+    login_cache_mock.get.return_value = 0
+    mocker.patch("freqtrade.rpc.api_server.api_auth.login_attempts_cache", login_cache_mock)
+
+    # Patch TTLCache.get to return [] (list) for RateLimiter
+    mocker.patch("cachetools.TTLCache.get", return_value=[])
+
     apiserver = None
     try:
         apiserver = ApiServer(default_conf)
