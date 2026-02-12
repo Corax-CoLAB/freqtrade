@@ -193,6 +193,12 @@
       border-radius: 10px;
       text-align: center;
     }
+    .helper-text {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-top: -0.5rem;
+        margin-bottom: 1.5rem;
+    }
     .docker-hint {
         font-size: 0.9rem;
         margin-top: 1rem;
@@ -496,6 +502,19 @@
         to { opacity: 0; transform: translateY(-20px); }
     }
 
+    /* Confetti */
+    .confetti {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        z-index: 9999;
+        pointer-events: none;
+        animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+        to { transform: translateY(100vh) rotate(720deg); }
+    }
+
     /* Print Styles */
     @media print {
         body {
@@ -562,10 +581,10 @@
     </noscript>
 
     <header>
-      <div class="status-badge">
-          <span class="status-dot"></span> Server Online
-          <span style="opacity: 0.3">|</span>
-          <span class="status-dot inactive"></span> UI Not Installed
+      <div class="status-badge" role="status" aria-label="System Status">
+          <span class="status-dot" title="System is operational" aria-label="System is operational"></span> Server Online
+          <span style="opacity: 0.3" aria-hidden="true">|</span>
+          <span class="status-dot inactive" title="UI is missing" aria-label="UI is missing"></span> UI Not Installed
       </div>
       <div class="logo-container">
         <button class="logo-btn" onclick="spinLogo(this)" aria-label="Spin the logo">
@@ -609,15 +628,18 @@
         <section class="content-section install-notice">
           <h3>🚀 Unlock the Full Edition!</h3>
           <p>The UI is currently hiding. Install it with this command:</p>
+          <p class="helper-text">
+              (This downloads the official dashboard to visualize your trades 📈)
+          </p>
 
           <div class="copy-container">
              <div class="terminal-wrapper" tabindex="0" aria-label="Terminal command output">
                  <div class="terminal-header">
                      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
                  </div>
-                 <code id="install-cmd" onclick="selectText(this)" onkeydown="handleKeyPress(event, this)" tabindex="0" role="button" title="Click or Enter to select">freqtrade install-ui</code>
+                 <code id="install-cmd" onclick="selectText(this)" onkeydown="handleKeyPress(event, this)" tabindex="0" role="button" title="Click or Enter to copy command" aria-label="Command: freqtrade install-ui. Press Enter to copy.">freqtrade install-ui</code>
              </div>
-             <button class="copy-btn" onclick="copyCommand('install-cmd', this)" aria-label="Copy install command">
+             <button class="copy-btn" onclick="copyCommand('install-cmd', this)" aria-label="Copy install command" aria-live="polite">
                 <span class="icon">📋</span>
                 <span class="text">Copy</span>
              </button>
@@ -625,8 +647,8 @@
 
           <div class="docker-hint">
             <strong>🐳 Docker User?</strong> Run:
-            <code id="docker-cmd" onclick="selectText(this)" onkeydown="handleKeyPress(event, this)" tabindex="0" role="button" title="Click or Enter to select">docker compose run --rm freqtrade install-ui</code>
-            <button class="copy-btn small" onclick="copyCommand('docker-cmd', this)" aria-label="Copy docker command">
+            <code id="docker-cmd" onclick="selectText(this)" onkeydown="handleKeyPress(event, this)" tabindex="0" role="button" title="Click or Enter to copy command" aria-label="Command: docker compose run --rm freqtrade install-ui. Press Enter to copy.">docker compose run --rm freqtrade install-ui</code>
+            <button class="copy-btn small" onclick="copyCommand('docker-cmd', this)" aria-label="Copy docker command" aria-live="polite">
                 <span class="icon">📋</span>
              </button>
           </div>
@@ -682,7 +704,14 @@
         function handleKeyPress(event, element) {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                selectText(element);
+                const container = element.closest('.copy-container') || element.closest('.docker-hint');
+                const copyBtn = container ? container.querySelector('.copy-btn') : null;
+
+                if (copyBtn) {
+                    copyCommand(element.id, copyBtn);
+                } else {
+                    selectText(element);
+                }
             }
         }
 
@@ -762,6 +791,20 @@
             }
         }
 
+        function fireConfetti() {
+            const colors = ['#ff00ff', '#00ffff', '#ffffff', '#ffff00'];
+            for (let i = 0; i < 50; i++) {
+                const conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.top = '-10px';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                document.body.appendChild(conf);
+                setTimeout(() => conf.remove(), 5000);
+            }
+        }
+
         async function refreshPage(btn) {
             btn.disabled = true;
             btn.classList.add('loading');
@@ -772,8 +815,9 @@
                 const data = await response.json();
 
                 if (data.version && data.version !== 'not_installed') {
+                    fireConfetti();
                     showToast('UI found! Reloading...', 'success');
-                    setTimeout(() => location.reload(), 1000);
+                    setTimeout(() => location.reload(), 2000);
                 } else {
                     showToast('UI still not installed. Please run the command above.', 'error');
                     // Reset button state so user can try again
@@ -804,8 +848,9 @@
                 const data = await response.json();
                 if (data.version && data.version !== 'not_installed') {
                     clearInterval(checkInterval);
+                    fireConfetti();
                     showToast('UI Installed! Redirecting...', 'success');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(() => location.reload(), 2000);
                 }
             } catch (e) {
                 // Ignore errors during polling (e.g. server restarting)
