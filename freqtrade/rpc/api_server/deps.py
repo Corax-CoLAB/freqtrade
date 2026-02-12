@@ -1,3 +1,4 @@
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 from uuid import uuid4
@@ -82,15 +83,21 @@ class RateLimiter:
     def __init__(self, max_calls: int, time_seconds: int):
         self.cache: TTLCache = TTLCache(maxsize=1000, ttl=time_seconds)
         self.max_calls = max_calls
+        self.ttl = time_seconds
 
     async def __call__(self, request: Request):
         client_ip = request.client.host if request.client else "unknown"
         # Rate limit per IP and endpoint path
         key = f"{client_ip}:{request.url.path}"
-        calls = self.cache.get(key, 0)
-        if calls >= self.max_calls:
+        history = self.cache.get(key, [])
+        now = time.time()
+        # Filter out old timestamps
+        history = [t for t in history if t > now - self.ttl]
+
+        if len(history) >= self.max_calls:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Rate limit exceeded",
             )
-        self.cache[key] = calls + 1
+        history.append(now)
+        self.cache[key] = history

@@ -1,4 +1,5 @@
 import logging
+import secrets
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.exceptions import HTTPException
@@ -549,7 +550,7 @@ def webhook(payload: WebhookPayload, rpc: RPC = Depends(get_rpc), config=Depends
     if not webhook_token:
         raise HTTPException(status_code=400, detail="Webhook token not configured")
 
-    if payload.token != webhook_token:
+    if not secrets.compare_digest(payload.token, webhook_token):
         raise HTTPException(status_code=401, detail="Invalid token")
 
     if payload.action in ("entry", "buy", "long", "short"):
