@@ -5,6 +5,9 @@
 [![Coverage Status](https://coveralls.io/repos/github/freqtrade/freqtrade/badge.svg?branch=develop&service=github)](https://coveralls.io/github/freqtrade/freqtrade?branch=develop)
 [![Documentation](https://readthedocs.org/projects/freqtrade/badge/)](https://www.freqtrade.io)
 
+**This is Crypto P's elevated version of Freqtrade.**
+Visit [https://cryptop.coraxcolab.com](https://cryptop.coraxcolab.com) for more information.
+
 Freqtrade - Crypto P Edition is a free and open source crypto trading bot written in Python. It is designed to support all major exchanges and be controlled via Telegram or webUI. It contains backtesting, plotting and money management tools as well as strategy optimization by machine learning.
 
 ![Freqtrade - Crypto P Edition](docs/assets/rebranded_screenshot.png)
