@@ -101,9 +101,7 @@ def clean_ohlcv_dataframe(
             data.sort_values(by="date", inplace=True)
 
         if not (
-            isinstance(data.index, pd.RangeIndex)
-            and data.index.start == 0
-            and data.index.step == 1
+            isinstance(data.index, pd.RangeIndex) and data.index.start == 0 and data.index.step == 1
         ):
             data.reset_index(drop=True, inplace=True)
 
