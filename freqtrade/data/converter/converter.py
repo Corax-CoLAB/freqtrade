@@ -100,7 +100,11 @@ def clean_ohlcv_dataframe(
         if not data["date"].is_monotonic_increasing:
             data.sort_values(by="date", inplace=True)
 
-        if not isinstance(data.index, pd.RangeIndex):
+        if not (
+            isinstance(data.index, pd.RangeIndex)
+            and data.index.start == 0
+            and data.index.step == 1
+        ):
             data.reset_index(drop=True, inplace=True)
 
         # Optimization: Only reorder/filter columns if necessary to avoid copy
