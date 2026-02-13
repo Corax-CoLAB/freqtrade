@@ -16,6 +16,17 @@ BASE_URI = "/api/v1"
 @pytest.fixture
 def botclient_sentinel(default_conf, mocker):
     setup_logging(default_conf)
+
+    # Patch cachetools.TTLCache.get to bypass RateLimiter (returns [])
+    # but support api_auth (returns 0 for integer count)
+    # self argument is consumed by Mock handling
+    def mock_cache_get(key, default=None):
+        if isinstance(default, list):
+            return []
+        return 0
+
+    mocker.patch("cachetools.TTLCache.get", side_effect=mock_cache_get)
+
     default_conf["runmode"] = RunMode.DRY_RUN
     default_conf.update(
         {

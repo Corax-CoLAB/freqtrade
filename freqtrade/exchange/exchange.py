@@ -601,21 +601,25 @@ class Exchange:
         Check if the market symbol is tradable by Freqtrade.
         Ensures that Configured mode aligns to
         """
-        return (
-            market.get("quote", None) is not None
-            and market.get("base", None) is not None
-            and (
-                self.precisionMode != TICK_SIZE
-                # Too low precision will falsify calculations
-                or market.get("precision", {}).get("price") is None
-                or market.get("precision", {}).get("price") > 1e-11
-            )
-            and (
-                (self.trading_mode == TradingMode.SPOT and self.market_is_spot(market))
-                or (self.trading_mode == TradingMode.MARGIN and self.market_is_margin(market))
-                or (self.trading_mode == TradingMode.FUTURES and self.market_is_future(market))
-            )
-        )
+        if market.get("quote") is None or market.get("base") is None:
+            return False
+
+        if self.precisionMode == TICK_SIZE:
+            # Too low precision will falsify calculations
+            # Optimization: Avoid creating intermediate dict via market.get("precision", {})
+            precision = market.get("precision")
+            price_precision = precision.get("price") if precision else None
+            if price_precision is not None and price_precision <= 1e-11:
+                return False
+
+        if self.trading_mode == TradingMode.SPOT:
+            return self.market_is_spot(market)
+        if self.trading_mode == TradingMode.MARGIN:
+            return self.market_is_margin(market)
+        if self.trading_mode == TradingMode.FUTURES:
+            return self.market_is_future(market)
+
+        return False
 
     def klines(self, pair_interval: PairWithTimeframe, copy: bool = True) -> DataFrame:
         if pair_interval in self._klines:
@@ -2321,13 +2325,15 @@ class Exchange:
         Get rate from ticker.
         """
         ticker_rate = ticker[price_side]
-        if ticker["last"] and ticker_rate:
-            if side == "entry" and ticker_rate > ticker["last"]:
+        # Optimization: Local variable for last price
+        last = ticker["last"]
+        if last and ticker_rate:
+            if side == "entry" and ticker_rate > last:
                 balance = conf_strategy.get("price_last_balance", 0.0)
-                ticker_rate = ticker_rate + balance * (ticker["last"] - ticker_rate)
-            elif side == "exit" and ticker_rate < ticker["last"]:
+                ticker_rate = ticker_rate + balance * (last - ticker_rate)
+            elif side == "exit" and ticker_rate < last:
                 balance = conf_strategy.get("price_last_balance", 0.0)
-                ticker_rate = ticker_rate - balance * (ticker_rate - ticker["last"])
+                ticker_rate = ticker_rate - balance * (ticker_rate - last)
         rate = ticker_rate
         return rate
 
