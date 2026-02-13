@@ -1295,12 +1295,11 @@ class IStrategy(ABC, HyperStrategyMixin):
         try:
             # Optimization: accessing last row directly is much faster than finding max date
             # as dataframe is guaranteed to be sorted by date.
-            latest = dataframe.iloc[-1]
+            latest_date_val = dataframe["date"].iloc[-1]
+            latest_date: datetime = latest_date_val.to_pydatetime()
         except Exception as e:
             logger.warning(f"Unable to get latest candle (OHLCV) data for pair {pair} - {e}")
             return None, None
-        # Explicitly convert to datetime object to ensure the below comparison does not fail
-        latest_date: datetime = latest["date"].to_pydatetime()
 
         # Check if dataframe is out of date
         timeframe_minutes = timeframe_to_minutes(timeframe)
@@ -1312,6 +1311,7 @@ class IStrategy(ABC, HyperStrategyMixin):
                 int((dt_now() - latest_date).total_seconds() // 60),
             )
             return None, None
+        latest = dataframe.iloc[-1]
         return latest, latest_date
 
     def get_exit_signal(

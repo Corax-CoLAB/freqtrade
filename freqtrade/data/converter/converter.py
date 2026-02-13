@@ -48,7 +48,7 @@ def ohlcv_to_dataframe(
         # Floor date to seconds to account for exchange imprecisions
         # Optimization: Integer arithmetic is faster than datetime conversion
         # We use np.int64 to ensure we don't overflow on 32bit systems/timestamps
-        dates = pd.to_datetime(ohlcv_np[:, 0].astype(np.int64) // 1000 * 1000, unit="ms", utc=True)
+        dates = pd.to_datetime(ohlcv_np[:, 0].astype(np.int64) // 1000, unit="s", utc=True)
 
         df = DataFrame(
             {
@@ -126,23 +126,37 @@ def ohlcv_fill_up_missing_data(dataframe: DataFrame, timeframe: str, pair: str) 
     using the previous close as price for "open", "high", "low" and "close", volume is set to 0
 
     """
+    if dataframe.empty:
+        return dataframe
+
     from freqtrade.exchange import timeframe_to_msecs, timeframe_to_resample_freq
 
-    if not dataframe.empty:
-        # Optimization: Check if data is contiguous before resampling
-        # 1ms = 1_000_000 ns
-        expected_delta_ns = timeframe_to_msecs(timeframe) * 1_000_000
-        dates = dataframe["date"].values.view(np.int64)
-        # Check if all time differences match the expected timeframe
-        # AND if the first date is aligned to the timeframe (e.g. 00:00 for 1d)
-        if dates[0] % expected_delta_ns == 0 and np.all(
-            dates[1:] - dates[:-1] == expected_delta_ns
-        ):
-            return dataframe
+    # Optimization: Check if data is contiguous before resampling
+    # 1ms = 1_000_000 ns
+    expected_delta_ns = timeframe_to_msecs(timeframe) * 1_000_000
+    dates = dataframe["date"].values.view(np.int64)
+    # Check if all time differences match the expected timeframe
+    # AND if the first date is aligned to the timeframe (e.g. 00:00 for 1d)
+    is_aligned = dates[0] % expected_delta_ns == 0
+    if is_aligned and np.all(dates[1:] - dates[:-1] == expected_delta_ns):
+        return dataframe
 
     resample_interval = timeframe_to_resample_freq(timeframe)
-    # Resample to create "NAN" values
-    df = dataframe.resample(resample_interval, on="date").agg(OHLCV_AGG)
+    # Optimization: Use reindex for aligned data to avoid expensive resample().agg()
+    if is_aligned:
+        start = dataframe.iloc[0]["date"]
+        end = dataframe.iloc[-1]["date"]
+        new_index = pd.date_range(
+            start=start,
+            end=end,
+            freq=resample_interval,
+            tz=dataframe["date"].dt.tz,
+            name="date",
+        )
+        df = dataframe.set_index("date").reindex(new_index)
+    else:
+        # Resample to create "NAN" values
+        df = dataframe.resample(resample_interval, on="date").agg(OHLCV_AGG)
 
     # Forwardfill close for missing columns
     df["close"] = df["close"].ffill()
@@ -152,6 +166,7 @@ def ohlcv_fill_up_missing_data(dataframe: DataFrame, timeframe: str, pair: str) 
             "open": df["close"],
             "high": df["close"],
             "low": df["close"],
+            "volume": 0,
         },
     )
     df.reset_index(inplace=True)
