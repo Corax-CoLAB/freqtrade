@@ -142,21 +142,8 @@ def ohlcv_fill_up_missing_data(dataframe: DataFrame, timeframe: str, pair: str) 
         return dataframe
 
     resample_interval = timeframe_to_resample_freq(timeframe)
-    # Optimization: Use reindex for aligned data to avoid expensive resample().agg()
-    if is_aligned:
-        start = dataframe.iloc[0]["date"]
-        end = dataframe.iloc[-1]["date"]
-        new_index = pd.date_range(
-            start=start,
-            end=end,
-            freq=resample_interval,
-            tz=dataframe["date"].dt.tz,
-            name="date",
-        )
-        df = dataframe.set_index("date").reindex(new_index)
-    else:
-        # Resample to create "NAN" values
-        df = dataframe.resample(resample_interval, on="date").agg(OHLCV_AGG)
+    # Resample to create "NAN" values
+    df = dataframe.resample(resample_interval, on="date").agg(OHLCV_AGG)
 
     # Forwardfill close for missing columns
     df["close"] = df["close"].ffill()
