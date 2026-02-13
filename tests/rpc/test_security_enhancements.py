@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 from freqtrade.enums import RunMode
@@ -15,6 +16,12 @@ BASE_URI = "/api/v1"
 
 @pytest.fixture
 def botclient_sentinel(default_conf, mocker):
+    # Disable RateLimiter for tests
+    async def no_rate_limit(self, request: Request):
+        return None
+
+    mocker.patch("freqtrade.rpc.api_server.deps.RateLimiter.__call__", no_rate_limit)
+
     setup_logging(default_conf)
     default_conf["runmode"] = RunMode.DRY_RUN
     default_conf.update(
