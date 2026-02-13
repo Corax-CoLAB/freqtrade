@@ -195,7 +195,7 @@
     }
     .helper-text {
         font-size: 0.9rem;
-        opacity: 0.8;
+        opacity: 0.95;
         margin-top: -0.5rem;
         margin-bottom: 1.5rem;
     }
@@ -238,6 +238,10 @@
         overflow-x: auto;
         text-align: left;
         transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .terminal-wrapper:focus-within {
+        border-color: var(--accent-secondary);
+        box-shadow: 0 0 15px var(--accent-secondary);
     }
     .terminal-header {
         background: #2a2a2a;
@@ -439,7 +443,8 @@
         position: relative;
     }
     /* Applied to buttons and links with aria-label */
-    [aria-label]:not(.logo-btn):hover::after {
+    [aria-label]:not(.logo-btn):hover::after,
+    [aria-label]:not(.logo-btn):focus-visible::after {
         content: attr(aria-label);
         position: absolute;
         bottom: 110%;
@@ -513,6 +518,23 @@
     }
     @keyframes confetti-fall {
         to { transform: translateY(100vh) rotate(720deg); }
+    }
+
+    .magic-text {
+        font-size: 0.85rem;
+        margin-top: 10px;
+        color: var(--accent-secondary);
+        opacity: 0.8;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .magic-text {
+            animation: pulse-text 2s infinite;
+        }
+    }
+    @keyframes pulse-text {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
     }
 
     /* Print Styles */
@@ -604,7 +626,7 @@
       </nav>
     </header>
 
-    <main id="main-content">
+    <main id="main-content" tabindex="-1">
         <div class="hero">
           <h2>Welcome to the Show! 🎪</h2>
           <p>Step into the most dazzling carousel for your crypto trading.</p>
@@ -658,6 +680,7 @@
               <span class="spinner"></span>
               <span class="btn-text">🔄 Refresh Dashboard</span>
           </button>
+          <p class="magic-text">✨ I'm also watching for changes automatically!</p>
         </section>
     </main>
 
